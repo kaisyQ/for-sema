@@ -1,0 +1,10 @@
+services:
+  php:
+    image: php:8.4-fpm
+    volumes:
+      - ./:/var/www/app
+    working_dir: /var/www/app
+    ports:
+      - "8000:8000"
+    environment:
+      - PHP_FPM_LISTEN_ADDRESS=127.0.0.1:8000
