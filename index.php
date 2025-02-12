@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/Core/Request.php';
 require_once __DIR__ . '/Core/Response.php';
+require_once __DIR__ . '/Core/Route.php';
 require_once __DIR__ . '/Core/AbstractController.php';
 require_once __DIR__ . '/Controllers/HomeController.php';
 require_once __DIR__ . '/Controllers/AdminController.php';
@@ -17,25 +18,49 @@ $homeController = new HomeController();
 $aboutController = new AboutController();
 $adminController = new AdminController();
 
-$response = null;
+/** @var array<class-string> $controllers */
+$controllers = [
+    HomeController::class,
+    AboutController::class,
+    AdminController::class,
+];
 
-switch ($request->uri) {
-    case '/':
-    case "/index":
-    case "/home":
-        $response = $homeController->getHomePage();
-        break;
-    case '/about':
-        $response = $aboutController->getAboutPage();
-        break;
-    case '/admin':
-        $response = $adminController->getAdminPage();
-        break;
-    default:
-        $response = new Response();
+class ClassMethod
+{
+    public string $methodName;
+
+    public string $className;
+}
+
+/** @var array<string, ClassMethod> $routeClassMethodMap */
+$routeClassMethodMap = [];
+
+foreach ($controllers as $controller) {
+    $reflection = new ReflectionClass($controller);
+    foreach ($reflection->getMethods() as $method) {
+        foreach ($method->getAttributes() as $attribute) {
+            if ($attribute->getName() === Route::class) {
+                $classMethod = new ClassMethod();
+                $classMethod->methodName = $method->getName();
+                $classMethod->className = $controller;
+                $routeClassMethodMap[$attribute->getArguments()[0]] = $classMethod;
+            }
+        }
+    }
+}
+
+$classMethod = $routeClassMethodMap[$request->uri];
+$className = $classMethod->className;
+$methodName = $classMethod->methodName;
+
+$class = new $className();
+
+$response = $class->$methodName();
+
+if (!isset($response)) {
+    $response = new Response();
         $response->status = 404;
         $response->body = file_get_contents(__DIR__ . '/views/404.html');
-        break;
 }
 
 foreach ($response->headers as $name => $header) {
