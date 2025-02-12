@@ -50,21 +50,21 @@ foreach ($controllers as $controller) {
 }
 
 $classMethod = $routeClassMethodMap[$request->uri];
-$className = $classMethod->className;
-$methodName = $classMethod->methodName;
 
-$class = new $className();
-
-$response = $class->$methodName();
-
-if (!isset($response)) {
+if (!isset($classMethod)) {
     $response = new Response();
-        $response->status = 404;
-        $response->body = file_get_contents(__DIR__ . '/views/404.html');
-}
+    $response->status = 404;
+    $response->body = file_get_contents(__DIR__ . '/views/404.html');
+} else {
+    $className = $classMethod->className;
+    $methodName = $classMethod->methodName;
 
+    $class = new $className();
+
+    $response = $class->$methodName();
+
+}
 foreach ($response->headers as $name => $header) {
     header("$name: $header");
 }
-
 echo $response->body;
