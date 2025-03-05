@@ -1,22 +1,18 @@
 <?php
 
-require_once __DIR__ . '/Core/Request.php';
-require_once __DIR__ . '/Core/Response.php';
-require_once __DIR__ . '/Core/Route.php';
-require_once __DIR__ . '/Core/AbstractController.php';
-require_once __DIR__ . '/Controllers/HomeController.php';
-require_once __DIR__ . '/Controllers/AdminController.php';
-require_once __DIR__ . '/Controllers/AboutController.php';
+use Jason\Backend\Controllers\AboutController;
+use Jason\Backend\Controllers\AdminController;
+use Jason\Backend\Controllers\HomeController;
+use Jason\Backend\Core\Database\DatabaseFactory;
+use Jason\Backend\Core\RequestFactory;
+use Jason\Backend\Core\Response;
+use Jason\Backend\Core\Route;
+use Jason\Backend\Core\Model\ClassMethod;
+use Symfony\Component\Yaml\Yaml;
 
-$request = new Request(
-    $_SERVER['REQUEST_METHOD'],
-    $_SERVER['REQUEST_URI'],
-    $_SERVER['SERVER_PROTOCOL'],
-);
+require_once __DIR__ . '/vendor/autoload.php';
 
-$homeController = new HomeController();
-$aboutController = new AboutController();
-$adminController = new AdminController();
+$request = RequestFactory::create();
 
 /** @var array<class-string> $controllers */
 $controllers = [
@@ -25,12 +21,17 @@ $controllers = [
     AdminController::class,
 ];
 
-class ClassMethod
-{
-    public string $methodName;
+$value = Yaml::parseFile(__DIR__ .'/config/database.yml');
+$value = $value['pdo'];
+$databaseFactory = new DatabaseFactory(
+    $value['host'], 
+    $value['port'],
+    $value['username'],
+    $value['password'],
+    $value['db_name'],
+);
+$database = $databaseFactory->create();
 
-    public string $className;
-}
 
 /** @var array<string, ClassMethod> $routeClassMethodMap */
 $routeClassMethodMap = [];
@@ -41,30 +42,26 @@ foreach ($controllers as $controller) {
         foreach ($method->getAttributes() as $attribute) {
             if ($attribute->getName() === Route::class) {
                 $classMethod = new ClassMethod();
-                $classMethod->methodName = $method->getName();
-                $classMethod->className = $controller;
+                $classMethod->setMethodName($method->getName());
+                $classMethod->setClassName($controller);
                 $routeClassMethodMap[$attribute->getArguments()[0]] = $classMethod;
             }
         }
     }
 }
 
-$classMethod = $routeClassMethodMap[$request->uri];
-
-if (!isset($classMethod)) {
+if (!isset($routeClassMethodMap[$request->getUri()])) {
     $response = new Response();
     $response->status = 404;
-    $response->body = file_get_contents(__DIR__ . '/views/404.html');
+    $response->body = file_get_contents(__DIR__ . '/views/404.jason.html');
 } else {
-    $className = $classMethod->className;
-    $methodName = $classMethod->methodName;
+    $classMethod = $routeClassMethodMap[$request->getUri()];
+    $className = $classMethod->getClassName();
+    $methodName = $classMethod->getMethodName();
 
     $class = new $className();
-
+    /** @var Response */
     $response = $class->$methodName();
+}
 
-}
-foreach ($response->headers as $name => $header) {
-    header("$name: $header");
-}
-echo $response->body;
+echo $response;

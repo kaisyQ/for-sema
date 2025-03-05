@@ -1,5 +1,9 @@
 <?php
 
+namespace Jason\Backend\Core;
+
+use Attribute;
+
 #[Attribute]
 class Route
 {

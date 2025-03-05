@@ -1,0 +1,14 @@
+{
+    "name": "jason/backend",
+    "description": "backend server for learning",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "Jason\\Backend\\": "src/"
+        }
+    },
+    "minimum-stability": "dev",
+    "require": {
+        "symfony/yaml": "7.3.x-dev"
+    }
+}
